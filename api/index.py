@@ -150,7 +150,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 </html>
 """
 
-# Models & Endpoints
+# Models
 class MeetingSaveRequest(BaseModel):
     participant: str
     company: str
@@ -161,10 +161,14 @@ class MeetingBriefRequest(BaseModel):
     company: str
     agenda: str
 
+# Endpoints handling root and /api prefixes
 @app.get("/", response_class=HTMLResponse)
+@app.get("/api", response_class=HTMLResponse)
+@app.get("/api/", response_class=HTMLResponse)
 def read_root():
     return HTMLResponse(content=HTML_CONTENT)
 
+@app.post("/save-meeting")
 @app.post("/api/save-meeting")
 def save_meeting(data: MeetingSaveRequest):
     try:
@@ -178,6 +182,7 @@ def save_meeting(data: MeetingSaveRequest):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.post("/get-brief")
 @app.post("/api/get-brief")
 def get_brief(data: MeetingBriefRequest):
     try:
