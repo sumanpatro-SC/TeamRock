@@ -162,7 +162,10 @@ class MeetingBriefRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 @app.get("/api", response_class=HTMLResponse)
 @app.get("/api/", response_class=HTMLResponse)
-def read_root():
+@app.get("/api/index", response_class=HTMLResponse)
+@app.get("/api/index/", response_class=HTMLResponse)
+@app.get("/{path:path}", response_class=HTMLResponse)
+def read_root(path: str = ""):
     return HTMLResponse(content=HTML_CONTENT)
 
 @app.post("/api/save-meeting")
