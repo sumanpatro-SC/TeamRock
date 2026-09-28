@@ -238,10 +238,5 @@ Please format the brief with:
 
 # GET Route mappings (placed after POSTs so they don't capture API paths)
 @app.get("/", response_class=HTMLResponse)
-@app.get("/api", response_class=HTMLResponse)
-@app.get("/api/", response_class=HTMLResponse)
-@app.get("/api/index", response_class=HTMLResponse)
-@app.get("/api/index/", response_class=HTMLResponse)
-@app.get("/{path:path}", response_class=HTMLResponse)
-def read_root(path: str = ""):
+def read_root():
     return HTMLResponse(content=HTML_CONTENT)
