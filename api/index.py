@@ -2,13 +2,12 @@ import os
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from hindsight_sdk import HindsightClient
+from hindsight_client import Hindsight
 from groq import Groq
 
 # Initialize Clients
-hindsight_client = HindsightClient(
-    api_key=os.getenv("HINDSIGHT_API_KEY"),
-    base_url=os.getenv("HINDSIGHT_API_URL")
+hindsight_client = Hindsight(
+    base_url=os.getenv("HINDSIGHT_API_URL", "https://api.hindsight.vectorize.io")
 )
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 BANK_ID = os.getenv("HINDSIGHT_BANK_ID", "Name: OpsMemory Incidents")
@@ -150,7 +149,6 @@ HTML_CONTENT = """<!DOCTYPE html>
 </html>
 """
 
-# Models
 class MeetingSaveRequest(BaseModel):
     participant: str
     company: str
@@ -161,16 +159,14 @@ class MeetingBriefRequest(BaseModel):
     company: str
     agenda: str
 
-# Endpoints handling root and /api prefixes
 @app.get("/", response_class=HTMLResponse)
 @app.get("/api", response_class=HTMLResponse)
 @app.get("/api/", response_class=HTMLResponse)
-@app.get("/{full_path:path}", response_class=HTMLResponse)
-def read_root(full_path: str = ""):
+def read_root():
     return HTMLResponse(content=HTML_CONTENT)
 
-@app.post("/save-meeting")
 @app.post("/api/save-meeting")
+@app.post("/save-meeting")
 def save_meeting(data: MeetingSaveRequest):
     try:
         content = f"Meeting with {data.participant} from {data.company}: {data.notes}"
@@ -183,8 +179,8 @@ def save_meeting(data: MeetingSaveRequest):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/get-brief")
 @app.post("/api/get-brief")
+@app.post("/get-brief")
 def get_brief(data: MeetingBriefRequest):
     try:
         query = f"Meeting history, past decisions, open items, and commitments with {data.participant} at {data.company}"
