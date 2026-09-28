@@ -1,4 +1,9 @@
 import os
+from dotenv import load_dotenv
+
+# Load local environment variables from .env if present
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -6,10 +11,18 @@ from hindsight_client import Hindsight
 from groq import Groq
 
 # Initialize Clients
+# Initialize Clients
+HINDSIGHT_URL = os.getenv("HINDSIGHT_API_URL", "https://api.hindsight.vectorize.io")
+HINDSIGHT_KEY = os.getenv("HINDSIGHT_API_KEY")
+
 hindsight_client = Hindsight(
-    base_url=os.getenv("HINDSIGHT_API_URL", "https://api.hindsight.vectorize.io")
+    api_key=HINDSIGHT_KEY,
+    base_url=HINDSIGHT_URL
 )
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+GROQ_KEY = os.getenv("GROQ_API_KEY", "")
+groq_client = Groq(api_key=GROQ_KEY) if GROQ_KEY else None
+
 BANK_ID = os.getenv("HINDSIGHT_BANK_ID", "Name: OpsMemory Incidents")
 
 app = FastAPI(title="MemoryMeet AI")
@@ -149,6 +162,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 </html>
 """
 
+# Models
 class MeetingSaveRequest(BaseModel):
     participant: str
     company: str
@@ -159,15 +173,7 @@ class MeetingBriefRequest(BaseModel):
     company: str
     agenda: str
 
-@app.get("/", response_class=HTMLResponse)
-@app.get("/api", response_class=HTMLResponse)
-@app.get("/api/", response_class=HTMLResponse)
-@app.get("/api/index", response_class=HTMLResponse)
-@app.get("/api/index/", response_class=HTMLResponse)
-@app.get("/{path:path}", response_class=HTMLResponse)
-def read_root(path: str = ""):
-    return HTMLResponse(content=HTML_CONTENT)
-
+# API Endpoints
 @app.post("/api/save-meeting")
 @app.post("/save-meeting")
 def save_meeting(data: MeetingSaveRequest):
@@ -186,6 +192,9 @@ def save_meeting(data: MeetingSaveRequest):
 @app.post("/get-brief")
 def get_brief(data: MeetingBriefRequest):
     try:
+        if not groq_client:
+            return {"status": "error", "message": "GROQ_API_KEY environment variable is not configured."}
+
         query = f"Meeting history, past decisions, open items, and commitments with {data.participant} at {data.company}"
         recall_res = hindsight_client.recall(bank_id=BANK_ID, query=query)
         
@@ -197,8 +206,9 @@ def get_brief(data: MeetingBriefRequest):
         else:
             memories = str(recall_res)
 
+        today_date = "2026-09-28"
         prompt = f"""
-You are an executive meeting preparation assistant. Prepare an actionable executive brief for an upcoming meeting.
+You are MemoryMeet AI, an executive meeting preparation assistant. Prepare an actionable executive brief for an upcoming meeting.
 
 Participant: {data.participant}
 Company: {data.company}
@@ -206,6 +216,11 @@ Upcoming Agenda: {data.agenda}
 
 Past Context & Memory (from Hindsight):
 {memories}
+
+Formatting rules:
+- NEVER output placeholder brackets like [Insert Meeting Date], [Insert Time], [Insert], or [Your Name].
+- If specific logistical details like call link or time are unknown, simply omit those fields or state "To be scheduled".
+- Use "{today_date}" as the brief date and "MemoryMeet AI" as the creator.
 
 Please format the brief with:
 1. Executive Summary of past relationship & key points
@@ -220,3 +235,13 @@ Please format the brief with:
         return {"status": "success", "brief": brief_text}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# GET Route mappings (placed after POSTs so they don't capture API paths)
+@app.get("/", response_class=HTMLResponse)
+@app.get("/api", response_class=HTMLResponse)
+@app.get("/api/", response_class=HTMLResponse)
+@app.get("/api/index", response_class=HTMLResponse)
+@app.get("/api/index/", response_class=HTMLResponse)
+@app.get("/{path:path}", response_class=HTMLResponse)
+def read_root(path: str = ""):
+    return HTMLResponse(content=HTML_CONTENT)
